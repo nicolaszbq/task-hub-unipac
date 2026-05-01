@@ -11,7 +11,7 @@ Como regra geral, as funcoes daqui nao conhecem HTTP, Flask ou frontend.
 Elas apenas executam operacoes de banco e devolvem valores simples para
 serem usados pelas camadas superiores da aplicacao.
 """
-
+import hmac
 import hashlib
 import os
 import secrets
@@ -144,7 +144,7 @@ def iniciar_database():
 
 
 def consultar_usuario(usuario):
-    """Retorna True se o nome de usuario ja existir no banco.
+    """Retorna os dados do usuario encontrado ou None.
 
     A consulta usa SQL parametrizado para evitar problemas de injecao.
     """
@@ -156,20 +156,23 @@ def consultar_usuario(usuario):
         conexao = obter_conexao(DATABASE_NAME)
         cursor = conexao.cursor()
 
-        sql = "SELECT 1 FROM usuarios WHERE usuario = %s LIMIT 1"
+        sql = """
+        SELECT id, nome, usuario, password, email, ativo, data_cadastro
+        FROM usuarios
+        WHERE usuario = %s
+        LIMIT 1
+        """
         cursor.execute(sql, (usuario,))
 
-        resultado = cursor.fetchone()
-        return resultado is not None
+        return cursor.fetchone()
     except Error as erro:
         print(f"Erro ao verificar usuario: {erro}")
-        return False
+        return None
     finally:
         if cursor is not None:
             cursor.close()
         if conexao is not None and conexao.is_connected():
             conexao.close()
-
 
 def registrar_usuario(nome, usuario, senha, email):
     """Insere um novo usuario no banco.
@@ -200,6 +203,7 @@ def registrar_usuario(nome, usuario, senha, email):
         cursor.execute(sql, valores)
         conexao.commit()
         print("Usuario registrado com sucesso!")
+        return True
     except Error as erro:
         print(f"Erro ao registrar usuario: {erro}")
         if conexao is not None and conexao.is_connected():
@@ -211,25 +215,26 @@ def registrar_usuario(nome, usuario, senha, email):
         if conexao is not None and conexao.is_connected():
             conexao.close()
 
+##asdasdasdasdasdadasd
 def login_user(usuario, password):
     conexao = None
     cursor = None
     try:
         conexao = obter_conexao(DATABASE_NAME)
         cursor = conexao.cursor()
-        verificar_user = consultar_usuario(usuario)
-        if verificar_user == True:
-            sql = "SELECT 1 FROM usuarios WHERE password = %s LIMIT 1"
-            cursor.execute(sql, (password,))
-            resultado = cursor.fetchone()
-            senha_enc = gerar_hash_senha(password)
-            verificar_hash_senha(resultado, password)
-            
-        else:
-            print("usuario nao encontrado!")
+        usuario_encontrado = consultar_usuario(usuario)
+
+        if usuario_encontrado is None:
+            print("Usuario nao encontrado")
             return False
-    except:
-        pass
+        senha_hash_armazenada = usuario_encontrado[3]
+        if not verificar_hash_senha(password, senha_hash_armazenada):
+            print("Usuario ou senha invalidos!")
+            return False
+        print("Usuario logado com sucesso!")
+        return True
+    except Exception as error:
+        print(error)
 
 
 if __name__ == "__main__":

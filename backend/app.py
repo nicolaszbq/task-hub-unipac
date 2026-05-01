@@ -18,8 +18,12 @@ def login():
         if not all([usuario, password]):
             return make_response(jsonify({"status": "erro, todos campos devem ser preenchidos!"}),400)
         
-        login_user(usuario, password)
+        verify = login_user(usuario, password)
+        if verify is not True:
+            return make_response(jsonify({"status": "Login failed!", "message":"Usuario ou senha invalidos!"}), 500)
         return make_response(jsonify({"status":"sucesso!"}), 200)
+    except Exception as error:
+        return make_response(jsonify({"status":str(error)}), 500)
 
 
 # Ping-Pong API TEST
@@ -39,7 +43,9 @@ def register():
         if not all([nome, usuario, senha, email]):
             return make_response(jsonify({"status":"error, preenche tudo, porra :)"}), 400)
 
-        registrar_usuario(nome, usuario, senha, email)
+        verify = registrar_usuario(nome, usuario, senha, email)
+        if verify is not True:
+            return make_response(jsonify({"status":"Este usuario ja esta registrado!"}), 500)
         return make_response(jsonify({"status":"sucesso!"}), 200)
     except Exception as error:
         return make_response(jsonify({"status":str(error)}), 500)
