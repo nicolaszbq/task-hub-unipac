@@ -37,6 +37,25 @@ DATABASE_NAME = os.getenv("DB_NAME", "task-hub-unipac")
 PASSWORD_HASH_ITERATIONS = int(os.getenv("PASSWORD_HASH_ITERATIONS", "100000"))
 
 
+
+def verificar_hash_senha(senha, senha_hash_armazenada):
+    """Compara a senha informada com o hash salvo no banco."""
+
+    try:
+        iteracoes_str, salt, senha_hash_salva = senha_hash_armazenada.split("$", 2)
+        iteracoes = int(iteracoes_str)
+    except (ValueError, AttributeError):
+        return False
+
+    senha_hash_calculada = hashlib.pbkdf2_hmac(
+        "sha256",
+        senha.encode("utf-8"),
+        salt.encode("utf-8"),
+        iteracoes,
+    ).hex()
+    return hmac.compare_digest(senha_hash_calculada, senha_hash_salva)
+
+
 def gerar_hash_senha(senha):
     """Gera um hash seguro da senha usando PBKDF2-HMAC com salt aleatorio.
 
@@ -111,7 +130,6 @@ def iniciar_database():
         """
         cursor.execute(sql_users)
         conexao.commit()
-        print("Tabela usuarios verificada/criada com sucesso!")
 
     except Error as erro:
         print(f"Erro ao conectar ao MySQL: {erro}")
@@ -181,7 +199,7 @@ def registrar_usuario(nome, usuario, senha, email):
 
         cursor.execute(sql, valores)
         conexao.commit()
-        return True
+        print("Usuario registrado com sucesso!")
     except Error as erro:
         print(f"Erro ao registrar usuario: {erro}")
         if conexao is not None and conexao.is_connected():
@@ -192,6 +210,26 @@ def registrar_usuario(nome, usuario, senha, email):
             cursor.close()
         if conexao is not None and conexao.is_connected():
             conexao.close()
+
+def login_user(usuario, password):
+    conexao = None
+    cursor = None
+    try:
+        conexao = obter_conexao(DATABASE_NAME)
+        cursor = conexao.cursor()
+        verificar_user = consultar_usuario(usuario)
+        if verificar_user == True:
+            sql = "SELECT 1 FROM usuarios WHERE password = %s LIMIT 1"
+            cursor.execute(sql, (password,))
+            resultado = cursor.fetchone()
+            senha_enc = gerar_hash_senha(password)
+            verificar_hash_senha(resultado, password)
+            
+        else:
+            print("usuario nao encontrado!")
+            return False
+    except:
+        pass
 
 
 if __name__ == "__main__":
