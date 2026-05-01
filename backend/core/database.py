@@ -215,6 +215,7 @@ def registrar_usuario(nome, usuario, senha, email):
         if conexao is not None and conexao.is_connected():
             conexao.close()
 
+##asdasdasdasdasdadasd
 def login_user(usuario, password):
     conexao = None
     cursor = None
